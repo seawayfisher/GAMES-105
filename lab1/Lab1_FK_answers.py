@@ -25,11 +25,15 @@ def part1_calculate_T_pose(bvh_file_path):
     输出:
         joint_name: List[str]，字符串列表，包含着所有关节的名字
         joint_parent: List[int]，整数列表，包含着所有关节的父关节的索引,根节点的父关节索引为-1
-        joint_offset: np.ndarray，形状为(M, 3)的numpy数组，包含着所有关节的偏移量
+        joint_offset: np.ndarray，形状为(M, 3)的numpy数组，包含着所有关节的相对偏移量
 
     Tips:
         joint_name顺序应该和bvh一致
     """
+    with open(bvh_file_path, "r") as file:
+    # 读取文件内容并打印
+        content = file.read()
+        print(content)
     joint_name = None
     joint_parent = None
     joint_offset = None
