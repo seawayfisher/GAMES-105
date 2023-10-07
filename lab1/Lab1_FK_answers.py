@@ -73,15 +73,17 @@ def GetBVHNode(lines, index, parent_name, joint_name_list:list, joint_parent_lis
 
 def GetBVHByStack(lines):
     stack = []
-    index = -1
+    # index = -1
     answer = []
+    sort_index = 0
     for line in lines:
         segments = line.split()
         first_segment = segments[0].strip()
         if first_segment == "ROOT" or first_segment == "JOINT" or first_segment == "End":
-            parent = stack[-1].get("index", -1) if stack else -1
-            index += 1
-            stack.append({"name": segments[1], "index": index, "parent": parent})
+            # parent = stack[-1].get("index", -1) if stack else -1
+            # index += 1
+            stack.append({"name": segments[1], "sort_index": sort_index}) #,  "parent_name": parent_name})
+            sort_index+=1
             continue
         if first_segment == "{":
             continue
@@ -93,16 +95,32 @@ def GetBVHByStack(lines):
         if first_segment == "End":
             continue
         if first_segment == "}":
-            answer.append(stack.pop())
+            item = stack.pop()
+            if item and item["name"] != "Site":
+                parent_name = stack[-1].get("name", None) if stack else None
+                item["parent_name"] = parent_name
+                answer.append(item)
             continue
 
     joint_name = []
     joint_parent = []
     joint_offset = []
-    for item in answer:
-        joint_name.append(item["name"])
-        joint_parent.append(item["parent"])
+
+    joint_parent_name = []
+    print("长度", len(answer))
+    name2index = {}
+    sorted_lst = sorted(answer, key=lambda x: x['sort_index'])
+    for index, item in enumerate(sorted_lst):
+        name = item["name"]
+        name2index[name] = index
+        joint_name.append(name)
         joint_offset.append(item["offset"])
+        joint_parent_name.append(item["parent_name"])
+
+    for name in joint_parent_name:
+        joint_parent.append(name2index.get(name, -1))
+
+    
     return joint_name, joint_parent, joint_offset
 
         
