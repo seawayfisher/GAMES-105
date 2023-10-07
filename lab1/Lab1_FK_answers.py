@@ -18,6 +18,94 @@ def load_motion_data(bvh_file_path):
     return motion_data
 
 
+def get_content_by_title(content:str, title:str):
+    titleSet = {"HIERARCHY", "MOTION"}
+    assert(title in titleSet )
+    lines = content.split("\n")
+    validLines = []
+    curTitle = ""
+    for line in lines:
+        line = line.strip()
+        isTitle = line in titleSet
+        if isTitle:
+            curTitle = line
+            continue
+        if curTitle != title: 
+            continue
+        validLines.append(line)
+    return "\n".join(validLines)
+
+def parse_content(content):
+    joint_name = []
+    joint_parent = []
+    joint_offset = []
+    lines = content.split("\n")
+    joint_name, joint_parent, joint_offset = GetBVHByStack(lines)
+    print("名字", joint_name)
+    print("parent", joint_parent)
+    print("offset", joint_offset)
+    return joint_name, joint_parent, joint_offset
+
+def GetBVHNode(lines, index, parent_name, joint_name_list:list, joint_parent_list, joint_offset_list):
+    segments = lines[index].split()
+    first_segments = segments[0].strip()
+    if first_segments == "}":
+        return index + 1
+    if first_segments not in {"ROOT", "JOINT"}:
+        return index + 1  # todo 这里肯定不完整的
+    name = segments[1]
+    index += 2 
+    offsetList = [float(value) for value in lines[index].split()[1:] ] 
+
+    joint_name_list.append(name)
+    joint_parent_list.append(joint_name_list.index(parent_name) if parent_name in joint_name_list else -1)
+    joint_offset_list.append(offsetList) 
+    
+    index += 1
+    hasChild = lines[index].startswith("CHANNELS")
+    if not hasChild:
+        pass
+    else:
+        index += 1 
+        while index < len(lines):
+            index = GetBVHNode(lines, index, name, joint_name_list, joint_parent_list, joint_offset_list)
+    return index
+
+def GetBVHByStack(lines):
+    stack = []
+    index = -1
+    answer = []
+    for line in lines:
+        segments = line.split()
+        first_segment = segments[0].strip()
+        if first_segment == "ROOT" or first_segment == "JOINT" or first_segment == "End":
+            parent = stack[-1].get("index", -1) if stack else -1
+            index += 1
+            stack.append({"name": segments[1], "index": index, "parent": parent})
+            continue
+        if first_segment == "{":
+            continue
+        if first_segment == "OFFSET":
+            stack[-1]["offset"] = [float(value) for value in line.split()[1:] ] 
+            continue
+        if first_segment == "CHANNELS":
+            continue
+        if first_segment == "End":
+            continue
+        if first_segment == "}":
+            answer.append(stack.pop())
+            continue
+
+    joint_name = []
+    joint_parent = []
+    joint_offset = []
+    for item in answer:
+        joint_name.append(item["name"])
+        joint_parent.append(item["parent"])
+        joint_offset.append(item["offset"])
+    return joint_name, joint_parent, joint_offset
+
+        
 
 def part1_calculate_T_pose(bvh_file_path):
     """请填写以下内容
@@ -33,10 +121,12 @@ def part1_calculate_T_pose(bvh_file_path):
     with open(bvh_file_path, "r") as file:
     # 读取文件内容并打印
         content = file.read()
-        print(content)
-    joint_name = None
-    joint_parent = None
-    joint_offset = None
+        content = get_content_by_title(content, "HIERARCHY")
+        # print(content)
+    joint_name, joint_parent, joint_offset = parse_content(content)
+#    joint_name = None
+#    joint_parent = None
+#    joint_offset = None
     return joint_name, joint_parent, joint_offset
 
 
