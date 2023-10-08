@@ -41,48 +41,22 @@ def parse_content(content):
     joint_offset = []
     lines = content.split("\n")
     joint_name, joint_parent, joint_offset = GetBVHByStack(lines)
-    print("名字", joint_name)
-    print("parent", joint_parent)
-    print("offset", joint_offset)
     return joint_name, joint_parent, joint_offset
-
-def GetBVHNode(lines, index, parent_name, joint_name_list:list, joint_parent_list, joint_offset_list):
-    segments = lines[index].split()
-    first_segments = segments[0].strip()
-    if first_segments == "}":
-        return index + 1
-    if first_segments not in {"ROOT", "JOINT"}:
-        return index + 1  # todo 这里肯定不完整的
-    name = segments[1]
-    index += 2 
-    offsetList = [float(value) for value in lines[index].split()[1:] ] 
-
-    joint_name_list.append(name)
-    joint_parent_list.append(joint_name_list.index(parent_name) if parent_name in joint_name_list else -1)
-    joint_offset_list.append(offsetList) 
-    
-    index += 1
-    hasChild = lines[index].startswith("CHANNELS")
-    if not hasChild:
-        pass
-    else:
-        index += 1 
-        while index < len(lines):
-            index = GetBVHNode(lines, index, name, joint_name_list, joint_parent_list, joint_offset_list)
-    return index
 
 def GetBVHByStack(lines):
     stack = []
-    # index = -1
     answer = []
     sort_index = 0
     for line in lines:
         segments = line.split()
         first_segment = segments[0].strip()
-        if first_segment == "ROOT" or first_segment == "JOINT" or first_segment == "End":
-            # parent = stack[-1].get("index", -1) if stack else -1
-            # index += 1
+        if first_segment == "ROOT" or first_segment == "JOINT":
             stack.append({"name": segments[1], "sort_index": sort_index}) #,  "parent_name": parent_name})
+            sort_index+=1
+            continue
+        if first_segment == "End":
+            parent_name = stack[-1].get("name")
+            stack.append({"name": "".join([parent_name, "_end"]), "sort_index": sort_index}) #,  "parent_name": parent_name})
             sort_index+=1
             continue
         if first_segment == "{":
@@ -96,10 +70,10 @@ def GetBVHByStack(lines):
             continue
         if first_segment == "}":
             item = stack.pop()
-            if item and item["name"] != "Site":
-                parent_name = stack[-1].get("name", None) if stack else None
-                item["parent_name"] = parent_name
-                answer.append(item)
+            parent_name = stack[-1].get("name", None) if stack else None
+
+            item["parent_name"] = parent_name
+            answer.append(item)
             continue
 
     joint_name = []
@@ -107,15 +81,17 @@ def GetBVHByStack(lines):
     joint_offset = []
 
     joint_parent_name = []
-    print("长度", len(answer))
     name2index = {}
     sorted_lst = sorted(answer, key=lambda x: x['sort_index'])
-    for index, item in enumerate(sorted_lst):
-        name = item["name"]
+    index = 0
+    for item in sorted_lst:
+        name = item["name"].strip()
         name2index[name] = index
         joint_name.append(name)
-        joint_offset.append(item["offset"])
+        joint_offset.append(np.array(item["offset"], dtype=np.float64))
         joint_parent_name.append(item["parent_name"])
+
+        index += 1
 
     for name in joint_parent_name:
         joint_parent.append(name2index.get(name, -1))
