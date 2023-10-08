@@ -113,14 +113,9 @@ def part1_calculate_T_pose(bvh_file_path):
         joint_name顺序应该和bvh一致
     """
     with open(bvh_file_path, "r") as file:
-    # 读取文件内容并打印
         content = file.read()
         content = get_content_by_title(content, "HIERARCHY")
-        # print(content)
     joint_name, joint_parent, joint_offset = parse_content(content)
-#    joint_name = None
-#    joint_parent = None
-#    joint_offset = None
     return joint_name, joint_parent, joint_offset
 
 
@@ -136,8 +131,30 @@ def part2_forward_kinematics(joint_name, joint_parent, joint_offset, motion_data
         1. joint_orientations的四元数顺序为(x, y, z, w)
         2. from_euler时注意使用大写的XYZ
     """
-    joint_positions = None
-    joint_orientations = None
+
+    joint_positions = []  # todo 改成numpy
+    joint_orientations = []
+
+    frame_data = motion_data[frame_id]
+    for index, name in enumerate(joint_name):
+        parent_index =joint_parent[index]
+        parent_pos = frame_data[:3] if parent_index < 0 else joint_positions[parent_index]  # 因为root的父是-1
+        postion = parent_pos + joint_offset[index]
+        joint_positions.append(postion)  #  位置偏移直接累加
+
+    for index, name in enumerate(joint_name):
+        parent_index =joint_parent[index]
+        readIndex = index + 1 #  
+        rotation_vec3 = frame_data[3* readIndex: 3*readIndex + 3]
+        # quat = R.from_rotvec(rotation_vec3).as_quat()
+        euler_angle = R.from_euler('XYZ', rotation_vec3, degrees=True)
+        offset_matrix = euler_angle.as_matrix()
+        parent_quat = R.from_quat(joint_orientations[parent_index] if parent_index >=0 else [0,0,0,0])  # TODO 四个零不一定对
+        parent_matrix = parent_quat.as_matrix()
+        curr_maxtrix = parent_matrix * offset_matrix
+        joint_orientations.append(curr_maxtrix.as_quat())
+
+        # 旋转的话
     return joint_positions, joint_orientations
 
 
