@@ -139,22 +139,33 @@ def part2_forward_kinematics(joint_name, joint_parent, joint_offset, motion_data
     for index, name in enumerate(joint_name):
         parent_index =joint_parent[index]
         parent_pos = frame_data[:3] if parent_index < 0 else joint_positions[parent_index]  # 因为root的父是-1
+        # print("检查中间变量", index, parent_pos, joint_offset[index])
+        # print("检查中间变量222", index, np.ndarray(parent_pos, dtype=np.float64))
+        # print("检查中间变量3333", index, np.ndarray(joint_offset[index], dtype=np.float64))
         postion = parent_pos + joint_offset[index]
         joint_positions.append(postion)  #  位置偏移直接累加
 
+    readIndex = 3
     for index, name in enumerate(joint_name):
-        parent_index =joint_parent[index]
-        readIndex = index + 1 #  
-        rotation_vec3 = frame_data[3* readIndex: 3*readIndex + 3]
-        # quat = R.from_rotvec(rotation_vec3).as_quat()
-        euler_angle = R.from_euler('XYZ', rotation_vec3, degrees=True)
-        offset_matrix = euler_angle.as_matrix()
-        parent_quat = R.from_quat(joint_orientations[parent_index] if parent_index >=0 else [0,0,0,0])  # TODO 四个零不一定对
-        parent_matrix = parent_quat.as_matrix()
+        offset_matrix = R.identity().as_matrix()
+
+        if not name.endswith("_end"):
+            parent_index =joint_parent[index] 
+            rotation_vec3 = frame_data[readIndex: readIndex + 3]
+            readIndex += 3  # 用过后就要往前步进
+            assert(len(rotation_vec3)==3)
+            # quat = R.from_rotvec(rotation_vec3).as_quat()
+            euler_angle = R.from_euler('XYZ', rotation_vec3, degrees=True)
+            offset_matrix = euler_angle.as_matrix()
+            
+        parent_rotation_obj = R.from_quat(joint_orientations[parent_index]) if parent_index >=0 else R.identity()
+        parent_matrix = parent_rotation_obj.as_matrix()
         curr_maxtrix = parent_matrix * offset_matrix
-        joint_orientations.append(curr_maxtrix.as_quat())
+        joint_orientations.append(R.from_matrix(curr_maxtrix).as_quat())
 
         # 旋转的话
+    joint_positions = np.stack(joint_positions, axis=0)  # todo 改成numpy
+    joint_orientations = np.stack(joint_orientations, axis=0)
     return joint_positions, joint_orientations
 
 
